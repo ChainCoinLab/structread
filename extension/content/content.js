@@ -73,7 +73,12 @@
     ];
   }
 
+  function isExtensionValid() {
+    try { return !!chrome.runtime.id; } catch (e) { return false; }
+  }
+
   function getEndpoint(cb) {
+    if (!isExtensionValid()) { cb(DEFAULT_ENDPOINT); return; }
     chrome.storage.local.get("apiEndpoint", function (data) {
       cb(data.apiEndpoint || DEFAULT_ENDPOINT);
     });
@@ -89,6 +94,10 @@
     if (overlayEl && overlayEl.contains(e.target)) return;
     if (wordPopupEl && wordPopupEl.contains(e.target)) return;
 
+    // Use mouse position for icon placement (works for all selections)
+    var mouseX = e.pageX;
+    var mouseY = e.pageY;
+
     // Small delay to let selection settle
     setTimeout(function () {
       removeWordIcon();
@@ -98,15 +107,10 @@
 
       if (!text) return;
 
-      var range = sel.getRangeAt(0);
-      var rect = range.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) return;
-
       var isWord = text.split(/\s+/).length <= 3;
 
       var icon = document.createElement("div");
       icon.className = "esa-word-icon";
-      // Plugin icon: translate icon for words, analyze icon for sentences
       if (isWord) {
         icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2v3"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>';
         icon.title = "Look up word";
@@ -114,19 +118,26 @@
         icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>';
         icon.title = "Analyze sentence";
       }
-      icon.style.top = (rect.top + window.scrollY - 36) + "px";
-      icon.style.left = (rect.right + window.scrollX + 4) + "px";
 
+      // Position near the mouse cursor (end of selection)
+      icon.style.top = (mouseY - 36) + "px";
+      icon.style.left = (mouseX + 8) + "px";
+
+      var savedText = text;
       icon.addEventListener("click", function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        var savedText = text;
-        var savedRect = rect;
         removeWordIcon();
+        // Get fresh selection rect for overlay positioning
+        var sel2 = window.getSelection();
+        var rect = null;
+        if (sel2 && sel2.rangeCount > 0) {
+          rect = sel2.getRangeAt(0).getBoundingClientRect();
+        }
         if (isWord) {
-          lookupWord(savedText, savedRect);
+          lookupWord(savedText, rect);
         } else {
-          analyzeFromIcon(savedText, savedRect);
+          analyzeFromIcon(savedText, rect);
         }
       });
 
@@ -135,19 +146,13 @@
     }, 50);
   });
 
-  // Hide word popup when clicking elsewhere (not icon)
+  // Hide word popup when clicking elsewhere
   document.addEventListener("mousedown", function (e) {
+    if (wordIconEl && !wordIconEl.contains(e.target)) {
+      removeWordIcon();
+    }
     if (wordPopupEl && !wordPopupEl.contains(e.target)) {
       removeWordPopup();
-    }
-  });
-
-  // Hide icon when selection is cleared
-  document.addEventListener("selectionchange", function () {
-    var sel = window.getSelection();
-    var text = sel ? sel.toString().trim() : "";
-    if (!text && wordIconEl) {
-      removeWordIcon();
     }
   });
 
@@ -157,7 +162,7 @@
 
   function analyzeFromIcon(text, rect) {
     getEndpoint(function (endpoint) {
-      // Get mode + colors + provider from storage
+      if (!isExtensionValid()) return;
       chrome.storage.local.get(["esaMode", "esaColors", "esaProviders", "esaActiveProvider"], function (data) {
         var mode = data.esaMode || "speed";
         var colors = data.esaColors || DEFAULT_COLORS;
@@ -363,7 +368,7 @@
   // ============================
 
   function saveToVocabulary(wordData) {
-    if (!wordData || !wordData.word) return;
+    if (!wordData || !wordData.word || !isExtensionValid()) return;
     chrome.storage.local.get("esaVocabulary", function (result) {
       var vocab = result.esaVocabulary || [];
 

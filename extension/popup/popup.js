@@ -6,9 +6,6 @@
   var resultArea = document.getElementById("resultArea");
   var coreSentenceEl = document.getElementById("coreSentence");
   var explanationEl = document.getElementById("explanation");
-  var apiEndpointInput = document.getElementById("apiEndpoint");
-  var saveSettingsBtn = document.getElementById("saveSettingsBtn");
-  var settingsSavedEl = document.getElementById("settingsSaved");
   var clearBtn = document.getElementById("clearBtn");
   var modeSpeedBtn = document.getElementById("modeSpeed");
   var modeLearningBtn = document.getElementById("modeLearning");
@@ -444,20 +441,6 @@
       });
     });
   }
-
-  // --- Settings ---
-
-  chrome.storage.local.get("apiEndpoint", function (data) {
-    apiEndpointInput.value = data.apiEndpoint || DEFAULT_ENDPOINT;
-  });
-
-  saveSettingsBtn.addEventListener("click", function () {
-    var url = apiEndpointInput.value.trim().replace(/\/+$/, "");
-    chrome.storage.local.set({ apiEndpoint: url || DEFAULT_ENDPOINT }, function () {
-      settingsSavedEl.classList.remove("hidden");
-      setTimeout(function () { settingsSavedEl.classList.add("hidden"); }, 1500);
-    });
-  });
 
   // --- Clear ---
 
