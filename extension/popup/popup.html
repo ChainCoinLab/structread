@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+  <title>Sentence Analyzer</title>
+</head>
+<body>
+  <div class="popup-container">
+    <h1 class="popup-title">Sentence Analyzer</h1>
+
+    <div class="mode-switch">
+      <button id="modeSpeed" class="mode-btn active" data-mode="speed">Speed Reading</button>
+      <button id="modeLearning" class="mode-btn" data-mode="learning">Learning</button>
+    </div>
+
+    <div class="btn-row">
+      <button id="analyzeBtn" class="btn-primary">Analyze Sentence</button>
+      <button id="clearBtn" class="btn-clear">Clear</button>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <div id="resultArea" class="result-area hidden">
+      <div class="result-section">
+        <h3>Core Sentence</h3>
+        <p id="coreSentence" class="core-sentence"></p>
+      </div>
+      <div class="result-section">
+        <h3>Explanation</h3>
+        <p id="explanation" class="explanation"></p>
+      </div>
+    </div>
+
+    <details class="settings-section" id="vocabSection">
+      <summary>Vocabulary (<span id="vocabCount">0</span>)</summary>
+      <div class="vocab-body">
+        <div id="vocabList" class="vocab-list"></div>
+        <div class="vocab-actions">
+          <button id="clearVocabBtn" class="btn-secondary">Clear All</button>
+          <button id="exportVocabBtn" class="btn-secondary">Export CSV</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="settings-section">
+      <summary>Settings</summary>
+      <div class="settings-body">
+        <div class="model-settings">
+          <h4>AI Model</h4>
+          <div id="providerList" class="provider-list"></div>
+          <div id="addProviderArea" class="add-provider-area">
+            <div class="add-provider-row">
+              <select id="providerSelect" class="provider-select">
+                <option value="" disabled selected>+ Add Model</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                <option value="gpt-4.1">GPT-4.1</option>
+                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                <option value="claude-opus-4">Claude Opus 4</option>
+                <option value="deepseek-chat">DeepSeek V3</option>
+                <option value="deepseek-reasoner">DeepSeek R1</option>
+              </select>
+            </div>
+            <div id="keyInputArea" class="key-input-area hidden">
+              <div class="key-input-label" id="keyInputLabel">API Key</div>
+              <div class="key-input-row">
+                <input type="password" id="providerApiKey" placeholder="sk-..." />
+                <button id="saveProviderBtn" class="btn-secondary">Add</button>
+                <button id="cancelProviderBtn" class="btn-secondary">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="color-settings">
+          <h4>Highlight Colors</h4>
+          <div class="color-row">
+            <label>Subject</label>
+            <input type="color" id="colorSubject" value="#bfdbfe" />
+          </div>
+          <div class="color-row">
+            <label>Verb</label>
+            <input type="color" id="colorVerb" value="#fecaca" />
+          </div>
+          <div class="color-row">
+            <label>Object</label>
+            <input type="color" id="colorObject" value="#bbf7d0" />
+          </div>
+          <div class="color-row">
+            <label>Attributive</label>
+            <input type="color" id="colorAttributive" value="#a78bfa" />
+          </div>
+          <div class="color-row">
+            <label>Adverbial</label>
+            <input type="color" id="colorAdverbial" value="#fb923c" />
+          </div>
+          <div class="color-row">
+            <label>Weak Modifier</label>
+            <input type="color" id="colorWeak" value="#d1d5db" />
+          </div>
+          <div class="color-actions">
+            <button id="saveColorsBtn" class="btn-secondary">Save Colors</button>
+            <button id="resetColorsBtn" class="btn-secondary">Reset</button>
+            <span id="colorsSaved" class="settings-saved hidden">Saved!</span>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
