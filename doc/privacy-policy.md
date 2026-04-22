@@ -82,7 +82,7 @@ Users can:
 
 For privacy questions, please contact:
 
-`natalie.johnson19950612@gmail.com`
+`fcihpy@gmail.com`
 
 ## Chrome Web Store Disclosure
 
