@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  if (window.__esaInjected) return;
+  window.__esaInjected = true;
+
   var highlightedSpans = [];
   var highlightWrapper = null;
   var overlayEl = null;
@@ -20,7 +23,9 @@
     weak: "#d1d5db",
   };
 
-  var DEFAULT_ENDPOINT = "http://127.0.0.1:8082";
+  var DEFAULT_ENDPOINT =
+    (globalThis.ESA_CONFIG && globalThis.ESA_CONFIG.defaultApiEndpoint) ||
+    "http://127.0.0.1:8082";
 
   var ATTRIBUTIVE_ROLES = ["adjective", "relative_clause", "compound"];
   var ADVERBIAL_ROLES = ["adverb", "prepositional_phrase", "adverb_clause"];
@@ -71,6 +76,120 @@
       { label: "Adverbial", color: c.adverbial, type: "outline" },
       { label: "Weak Modifier", color: c.weak, type: "faded" },
     ];
+  }
+
+  function normalizeWhitespace(text) {
+    return (text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function sentenceCase(text) {
+    var clean = normalizeWhitespace(text);
+    if (!clean) return "";
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+
+  function stripTrailingPunctuation(text) {
+    return normalizeWhitespace(text).replace(/[.,;:!?]+$/, "");
+  }
+
+  function buildPrimaryCoreSummary(analysis) {
+    var bits = [];
+    if (analysis.core && analysis.core.subject && analysis.core.subject.text) {
+      bits.push({ label: "Subject", text: analysis.core.subject.text, tone: "subject" });
+    }
+    if (analysis.core && analysis.core.verb && analysis.core.verb.text) {
+      bits.push({ label: "Verb", text: analysis.core.verb.text, tone: "verb" });
+    }
+    if (analysis.core && analysis.core.object && analysis.core.object.text) {
+      bits.push({ label: "Object", text: analysis.core.object.text, tone: "object" });
+    }
+    return bits;
+  }
+
+  function getModifierLabel(role) {
+    if (role === "relative_clause") return "Secondary Clause";
+    if (role === "adverb_clause") return "Condition / Time Clause";
+    if (role === "prepositional_phrase") return "Support Detail";
+    if (role === "infinitive_phrase") return "Purpose Phrase";
+    if (role === "participle_phrase") return "Descriptive Phrase";
+    return "Secondary Structure";
+  }
+
+  function splitMeaningUnits(text) {
+    var clean = stripTrailingPunctuation(text);
+    if (!clean) return [];
+
+    var parts = clean
+      .split(/,\s+|\s+\bthat\b\s+|\s+\bwho\b\s+|\s+\bwhich\b\s+|\s+\bwhen\b\s+|\s+\bwhile\b\s+|\s+\bbecause\b\s+|\s+\babout\b\s+/i)
+      .map(function (part) { return normalizeWhitespace(part); })
+      .filter(Boolean);
+
+    if (parts.length > 1) {
+      return parts.slice(0, 4);
+    }
+
+    var tokens = clean.split(/\s+/);
+    var units = [];
+    var chunkSize = tokens.length > 10 ? 4 : 3;
+    for (var i = 0; i < tokens.length; i += chunkSize) {
+      units.push(tokens.slice(i, i + chunkSize).join(" "));
+    }
+    return units.slice(0, 4);
+  }
+
+  function buildSecondaryRewrite(component) {
+    var text = stripTrailingPunctuation(component.text);
+    if (!text) return "";
+
+    var role = component.role || "";
+    if (role === "relative_clause") {
+      var rel = text.match(/^(who|that|which)\s+(.+)$/i);
+      if (rel) {
+        return sentenceCase(rel[2]) + ".";
+      }
+    }
+
+    if (role === "adverb_clause") {
+      var adv = text.match(/^(although|because|when|while|if|since|after|before)\s+(.+)$/i);
+      if (adv) {
+        return sentenceCase(adv[2]) + ".";
+      }
+    }
+
+    if (role === "prepositional_phrase") {
+      return "This adds detail: " + text + ".";
+    }
+
+    return sentenceCase(text) + ".";
+  }
+
+  function buildSecondaryStructures(analysis) {
+    if (!analysis || !analysis.components || !analysis.components.length) return [];
+
+    var eligibleRoles = {
+      relative_clause: true,
+      adverb_clause: true,
+      prepositional_phrase: true,
+      infinitive_phrase: true,
+      participle_phrase: true,
+    };
+
+    return analysis.components
+      .filter(function (component) {
+        return component.category === "modifier" &&
+          eligibleRoles[component.role] &&
+          normalizeWhitespace(component.text).split(/\s+/).length >= 3;
+      })
+      .slice(0, 3)
+      .map(function (component) {
+        return {
+          label: getModifierLabel(component.role),
+          text: normalizeWhitespace(component.text),
+          modifies: component.modifies || "sentence",
+          rewrite: buildSecondaryRewrite(component),
+          meaningUnits: splitMeaningUnits(component.text),
+        };
+      });
   }
 
   function isExtensionValid() {
@@ -555,15 +674,105 @@
     var body = document.createElement("div");
     body.className = "esa-overlay-body";
 
+    var primaryCore = buildPrimaryCoreSummary(analysis);
+    if (primaryCore.length > 0) {
+      var primarySection = document.createElement("section");
+      primarySection.className = "esa-breakdown-section";
+
+      var primaryTitle = document.createElement("h4");
+      primaryTitle.textContent = "Main Sentence";
+      primarySection.appendChild(primaryTitle);
+
+      var primaryGrid = document.createElement("div");
+      primaryGrid.className = "esa-core-grid";
+      for (var i = 0; i < primaryCore.length; i++) {
+        var item = primaryCore[i];
+        var card = document.createElement("div");
+        card.className = "esa-core-card esa-core-card-" + item.tone;
+
+        var cardLabel = document.createElement("div");
+        cardLabel.className = "esa-core-card-label";
+        cardLabel.textContent = item.label;
+        card.appendChild(cardLabel);
+
+        var cardText = document.createElement("div");
+        cardText.className = "esa-core-card-text";
+        cardText.textContent = item.text;
+        card.appendChild(cardText);
+
+        primaryGrid.appendChild(card);
+      }
+      primarySection.appendChild(primaryGrid);
+      body.appendChild(primarySection);
+    }
+
     if (analysis.core_sentence) {
       var h = document.createElement("h4");
-      h.textContent = "Core Sentence";
+      h.textContent = "Short-Sentence Rewrite";
       body.appendChild(h);
 
       var p = document.createElement("div");
       p.className = "esa-core-text";
       p.textContent = analysis.core_sentence;
       body.appendChild(p);
+    }
+
+    var secondaryStructures = buildSecondaryStructures(analysis);
+    if (secondaryStructures.length > 0) {
+      var secondarySection = document.createElement("section");
+      secondarySection.className = "esa-breakdown-section";
+
+      var secondaryTitle = document.createElement("h4");
+      secondaryTitle.textContent = "Secondary Structure";
+      secondarySection.appendChild(secondaryTitle);
+
+      for (var j = 0; j < secondaryStructures.length; j++) {
+        var block = secondaryStructures[j];
+        var blockEl = document.createElement("div");
+        blockEl.className = "esa-secondary-block";
+
+        var blockHead = document.createElement("div");
+        blockHead.className = "esa-secondary-head";
+
+        var badge = document.createElement("span");
+        badge.className = "esa-secondary-badge";
+        badge.textContent = block.label;
+        blockHead.appendChild(badge);
+
+        var modifies = document.createElement("span");
+        modifies.className = "esa-secondary-modifies";
+        modifies.textContent = "Supports " + block.modifies;
+        blockHead.appendChild(modifies);
+        blockEl.appendChild(blockHead);
+
+        var blockText = document.createElement("div");
+        blockText.className = "esa-secondary-text";
+        blockText.textContent = block.text;
+        blockEl.appendChild(blockText);
+
+        if (block.meaningUnits.length > 0) {
+          var units = document.createElement("div");
+          units.className = "esa-meaning-units";
+          for (var k = 0; k < block.meaningUnits.length; k++) {
+            var chip = document.createElement("span");
+            chip.className = "esa-meaning-chip";
+            chip.textContent = block.meaningUnits[k];
+            units.appendChild(chip);
+          }
+          blockEl.appendChild(units);
+        }
+
+        if (block.rewrite) {
+          var rewrite = document.createElement("div");
+          rewrite.className = "esa-secondary-rewrite";
+          rewrite.textContent = block.rewrite;
+          blockEl.appendChild(rewrite);
+        }
+
+        secondarySection.appendChild(blockEl);
+      }
+
+      body.appendChild(secondarySection);
     }
 
     if (analysis.explanation) {

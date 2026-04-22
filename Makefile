@@ -1,4 +1,4 @@
-.PHONY: dev server-run server-build server-test nlp-run nlp-install clean
+.PHONY: dev server-run server-build server-test nlp-run nlp-install extension-release clean
 
 # Run both services (use two terminals, or run each target separately)
 dev:
@@ -22,3 +22,7 @@ nlp-install:
 
 nlp-run:
 	cd nlp && uvicorn main:app --port 8081 --reload
+
+extension-release:
+	@if [ -z "$(ESA_API_ORIGIN)" ]; then echo "ESA_API_ORIGIN is required, for example: make extension-release ESA_API_ORIGIN=https://api.example.com"; exit 1; fi
+	python3 scripts/build_extension_release.py --api-origin "$(ESA_API_ORIGIN)"

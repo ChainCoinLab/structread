@@ -21,6 +21,7 @@ nlp/venv/
 # Chrome extension packaging
 *.crx
 *.pem
+dist/
 
 # OS
 .DS_Store

@@ -1,8 +1,14 @@
 (function () {
   "use strict";
 
-  const DEFAULT_ENDPOINT = "http://127.0.0.1:8082";
+  importScripts("../shared/runtime-config.js");
+
+  const DEFAULT_ENDPOINT =
+    (globalThis.ESA_CONFIG && globalThis.ESA_CONFIG.defaultApiEndpoint) ||
+    "http://127.0.0.1:8082";
   const MENU_ID = "esa-analyze-sentence";
+  const INJECT_FILES = ["shared/runtime-config.js", "content/content.js"];
+  const INJECT_CSS = ["content/content.css"];
 
   // Register context menu on install
   chrome.runtime.onInstalled.addListener(() => {
@@ -16,11 +22,14 @@
   // Handle context menu click
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId !== MENU_ID) return;
+    if (!tab || !tab.id) return;
 
     const selectedText = info.selectionText;
     if (!selectedText || !selectedText.trim()) return;
 
     try {
+      await ensureContentScriptInjected(tab.id);
+
       const endpoint = await getEndpoint();
       const apiUrl = endpoint + "/api/v1/analyze";
 
@@ -73,6 +82,25 @@
       chrome.storage.local.get("esaColors", (data) => {
         resolve(data.esaColors || null);
       });
+    });
+  }
+
+  async function ensureContentScriptInjected(tabId) {
+    const [{ result: injected }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => !!window.__esaInjected,
+    });
+
+    if (injected) return;
+
+    await chrome.scripting.insertCSS({
+      target: { tabId },
+      files: INJECT_CSS,
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: INJECT_FILES,
     });
   }
 })();

@@ -21,7 +21,11 @@
   var resetColorsBtn = document.getElementById("resetColorsBtn");
   var colorsSavedEl = document.getElementById("colorsSaved");
 
-  var DEFAULT_ENDPOINT = "http://127.0.0.1:8082";
+  var DEFAULT_ENDPOINT =
+    (globalThis.ESA_CONFIG && globalThis.ESA_CONFIG.defaultApiEndpoint) ||
+    "http://127.0.0.1:8082";
+  var INJECT_FILES = ["shared/runtime-config.js", "content/content.js"];
+  var INJECT_CSS = ["content/content.css"];
   var currentMode = "speed";
 
   var DEFAULT_COLORS = {
@@ -449,6 +453,7 @@
     hideResult();
     try {
       var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      await ensureContentScriptInjected(tabs[0].id);
       chrome.tabs.sendMessage(tabs[0].id, { action: "cleanup" });
     } catch (err) {
       // ignore
@@ -472,6 +477,7 @@
 
     var selectedText;
     try {
+      await ensureContentScriptInjected(tab.id);
       var response = await chrome.tabs.sendMessage(tab.id, { action: "getSelection" });
       selectedText = response && response.text;
     } catch (err) {
@@ -642,4 +648,23 @@
       URL.revokeObjectURL(url);
     });
   });
+
+  async function ensureContentScriptInjected(tabId) {
+    var results = await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: function () { return !!window.__esaInjected; },
+    });
+
+    if (results && results[0] && results[0].result) return;
+
+    await chrome.scripting.insertCSS({
+      target: { tabId: tabId },
+      files: INJECT_CSS,
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: INJECT_FILES,
+    });
+  }
 })();
