@@ -1,6 +1,6 @@
 # Privacy Policy for StructRead
 
-Last updated: 2026-04-21
+Last updated: 2026-04-22
 
 ## Overview
 
@@ -80,9 +80,9 @@ Users can:
 
 ## Contact
 
-For privacy questions, add a public contact address here before launch:
+For privacy questions, please contact:
 
-`[TODO: privacy contact email]`
+`natalie.johnson19950612@gmail.com`
 
 ## Chrome Web Store Disclosure
 
